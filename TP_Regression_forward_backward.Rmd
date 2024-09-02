@@ -1,0 +1,705 @@
+---
+title: "Regression forward backward"
+author: 
+- name: "SORO DOBA ISSIAKA"
+- name: "KAMAGATE YOUSSOUF"
+  phone: "05-55-39-97-80"
+  affiliation: "Data scientist"
+lang: fr
+date: "`r Sys.Date()`"
+geometry: "margin=2cm"
+number-sections: true
+output: 
+      rmdformats::readthedown:
+      #:downcute: 
+      #readthedown, html_clean,html_docco,material,robobook,lockdown,downcute #https://github.com/juba/rmdformats
+      self_contained: true
+      #thumbnails: true
+      lightbox: true 
+      self_folding: TRUE
+      code_folding: show
+      thumbnails: TRUE
+      gallery: false
+      fig_width: 4
+      fig_height: 4
+      df_print: kable
+      fig_caption: yes
+      highlight: tango
+      use_bookdown: TRUE
+      embed_fonts: true
+      css: ["style-1.css", "style-2.css"]
+      includes:
+        in_header: "header.html"
+     # number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+# les packages
+library(tidyverse)
+library(rmdformats)
+library(lubridate)
+library(forecast)
+library(kableExtra)
+library(dplyr)
+library(TSstudio)
+library(tseries)
+library(dygraphs)
+library(tseries)
+library(jpeg)
+library(survival)
+library(readr)
+library(plotly)
+library(knitr)
+library(corrplot)
+library(DT)
+```
+
+
+```{css toc-content, echo = FALSE}
+ TOC {
+  right: 200px;
+  margin: 5px 0px 25px 0px;
+}
+
+.main-container {
+    margin-left: 10px;
+}
+
+p {
+  font-size:  16px;
+    line-height : 2em;  
+}
+
+h1 {
+  color: purple;
+  font-size:  18px;
+    line-height : 2em;  
+}
+
+h2 {
+  color:blues9;
+  font-size:  15px;
+    line-height : 2em;  
+}
+
+h3,h4{
+  color:red;
+  font-size:  12px;
+}
+
+.toggle-button {
+  background-color: #007BFF;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 10px 2px;
+  cursor: pointer;
+}
+
+.hidden-code {
+  display: none;
+}
+
+  
+```
+
+# I- **Analyse des données des fichiers ukcomp1.txt et ukcomp2.txt**
+
+Pour ce TP, on dispose de données (Jobson, 1991) qui décrivent les resultats comptables de 80 entreprises du Royaume Uni. Les entreprises sont réparties aléatoirement en deux groupes de 40 entreprises qui se trouvent dans les fichiers **ukcomp1.txt** et **ukcomp2.txt.** Un ensemble de 13 variables ont été collectées qui décrivent les resultats comptables des entreprises.
+
+## Jeu de données
+
+```{r echo=TRUE}
+data<-read.table("ukcomp1.txt")
+names(data) = c('RETCAP','WCFTDT', 'LOGSALE','LOGASST','CURRAT','QUIKRAT',
+ 'NFATAST', 'FATTOT', 'PAYOUT','WCFTCL','GEARRAT', 'CAPINT', 'INVTAST')
+datatable(data)
+```
+
+## Regression de RETCAP en fonction des autres covariables
+
+```{r echo=TRUE}
+mod_complet = lm(RETCAP ~ ., data=data)
+summary(mod_complet)
+```
+
+## Q. 1 Commenter les resultats suivants:
+
+-  **Multiple R-squared.** 
+
+Le $R^{2}$ est égal à 0.7889 cela signifie que 78.89 % de la variance de la variable dépendante (RETCAP) est expliquée par le modèle de régression. C'est un bon résultat, indiquant que le modèle explique une grande partie de la variance des données.
+
+- **Adjusted R-squared**
+
+Le $R^{2}$ ajusté est une version modifiée du $R^{2}$ qui prend en compte le nombre de variables indépendantes dans le modèle. Il pénalise les modèles complexes en ajustant la valeur du R² en fonction du nombre de prédicteurs. Dans ce cas, le $R^{2}$  ajusté est de 0.6951, soit 69.51 %. Cela signifie que, même après ajustement pour le nombre de prédicteurs, le modèle reste relativement performant. La différence entre le $R^{2}$ et $R^{2}$ ajusté suggère qu'il pourrait y avoir des variables dans le modèle qui n'ajoutent pas de valeur explicative significative.
+
+- **Commenter les valeurs de la p-value pour le  test de Student (nullite d'un coefficient)**
+
+**les hypothèse du test de Student sont:**
+
+$H_{0}$: $\beta_{i} = 0$ contre $H_{1}$ : $\beta_{i}\neq 0$
+
+Interprétation des p-valeurs :
+
+- **(Intercept)** : p-valeur = 0.17160
+
+Cette p-valeur est supérieure au seuil conventionnel de 0.05, ce qui indique que l'intercept n'est pas statistiquement significatif. Autrement dit, la constante du modèle n'est pas significativement différente de zéro.
+
+- **WCFTDT** : p-valeur = 0.60270
+
+Cette p-valeur est supérieure au seuil conventionnel de 0.05, ce qui signifie que le coefficient associé à la variable **WCFTDT** n'est pas significatif. Il n'y a pas suffisamment de preuves pour conclure que cette variable a un effet significatif sur la variable dépendante.
+
+- **LOGSALE** : p-valeur = 0.55048
+
+Comme pour **WCFTDT**, cette p-valeur élevée indique que LOGSALE n'a pas d'effet significatif sur la variable dépendante dans ce modèle.
+
+- **LOGASST** : p-valeur = 0.31328
+
+Cette p-valeur est également supérieure à 0.05, suggérant que LOGASST n'est pas significativement associé à la variable dépendante.
+
+- **CURRAT** : p-valeur = 0.00287
+
+Cette p-valeur est très faible inférieure à 0.05, ce qui signifie que **CURRAT** est statistiquement significatif au niveau de 5%. Cette variable a donc un effet significatif sur la variable dépendante.
+
+- **QUIKRAT** : p-valeur = 0.09994
+
+Cette p-valeur est également supérieure à 0.05, suggérant que **QUIKRAT** n'est pas significativement associé à la variable dépendante au seuil de 5%.
+
+- **NFATAST** : p-valeur = 0.01696
+
+Avec une p-valeur inférieure à 0.05, **NFATAST** est significatif au niveau de 5 %. Cette variable a un effet statistiquement significatif sur la variable dépendante au seuil de 5%.
+
+- **FATTOT** : p-valeur = 0.06437
+
+Cette p-valeur est supérieure au seuil conventionnel de 0.05, ce qui signifie que le coefficient associé à la variable **FATTOT** n'est pas significatif. Il n'y a pas suffisamment de preuves pour conclure que cette variable a un effet significatif sur la variable dépendante.
+
+- **PAYOUT** : p-valeur = 0.01202
+
+Cette p-valeur est inférieure à 0.05, ce qui signifie que **PAYOUT** est significatif au niveau de 5 %. Cette variable a donc un effet significatif sur la variable dépendante.
+
+- **WCFTCL** : p-valeur = 0.18884
+
+Cette p-valeur élevée suggère que WCFTCL n'est pas statistiquement significatif au seuil de 5%.
+
+- **GEARRAT** : p-valeur = 0.25932
+
+GEARRAT a une p-valeur bien supérieure à 0.05, indiquant qu'il n'est pas significatif.
+
+- **CAPINT** : p-valeur = 0.29645
+
+CAPINT n'est pas significatif, avec une p-valeur supérieure à 0.05.
+
+- **INVTAST** : p-valeur = 0.28658
+
+Cette p-valeur indique qu'INVTAST n'est pas statistiquement significatif.
+
+En somme, Les variables **CURRAT**, **NFATAST**, et **PAYOUT** sont statistiquement significatives au niveau de 5 %, ce qui signifie qu'elles ont probablement un effet réel sur la variable dépendante.
+
+- **le test global de Fisher**.
+
+Les hypothèses de ce test sont: $H_{0}$: $\beta_{0} =\beta_{1}=...= \beta_{12}= 0$ contre $H_{1}$ : l'un des  $\beta_{i}\neq 0$
+
+la p-value est : 2.555e-06
+
+**Interprétation** : La p-valeur associée à la statistique F est extrêmement faible, ce qui est bien inférieur au seuil de 0.05. Cela signifie qu'il y a une très faible probabilité que les résultats observés soient dus au hasard, et donc on peut rejeter l'hypothèse nulle avec un haut niveau de confiance. En d'autres termes, le modèle dans son ensemble est statistiquement significatif, et au moins une des variables indépendantes a un effet significatif sur la variable dépendante.
+
+
+
+## Q. 2 Utiliser la fonction extractAIC pour calculer la valeur du critere AIC pour le modele complet
+
+- **L' AIC** (Critère d'information d'Akaike), est une mesure utilisée en statistique pour comparer des modèles de régression. 
+
+```{r echo=TRUE}
+# Utilisation de la fonction extractAIC
+
+resultat_aic <- extractAIC(mod_complet)
+# Le deuxième élément est la valeur AIC
+valeur_aic <- resultat_aic[2]
+
+# Affichage de la valeur AIC
+print(valeur_aic)
+
+```
+**AIC du modèle complet est égale à -197.5698**
+
+- **Le PRESS** est une mesure de la qualité prédictive du modèle, en particulier en termes de validation croisée. L'idée est de laisser une observation de côté, d'ajuster le modèle sur les observations restantes, puis de prédire la valeur pour l'observation laissée de côté. Le processus est répété pour chaque observation, et la somme des carrés des résidus prédits est calculée.
+```{r echo=TRUE}
+
+n <- nrow(data)  # Nombre d'observations
+PRESS <- 0  # Initialisation de PRESS
+
+for (i in 1:n) {
+  # Créer un sous-échantillon en retirant la i-ème observation
+  ukcomp1_small <- data[-i, ]
+  
+  # Ajuster le modèle sur les données réduites
+  mod_small <- lm(RETCAP ~ ., data = ukcomp1_small)
+  
+  # Prédire la valeur de RETCAP pour la i-ème observation
+  pred <- predict(mod_small, newdata = data[i, , drop = FALSE])
+  
+  # Ajouter l'erreur au carré au total PRESS
+  PRESS <- PRESS + (data[i, "RETCAP"] - pred)^2
+}
+
+# Afficher la valeur de PRESS
+print(PRESS)
+
+```
+
+## Q. 3 Implementer la procedure backward selection
+
+- **Elimination** (backward selection) : l'algorithme demarre du modele complet (mod_complet). A chaque etape, la variable associée à la plus grande p-valeur du test de Student est eliminée du modele. La procedure s'arrête lorsque les variables restant dans le modele ont des p valeurs plus petites qu'un seuil fixe par defaut (e.g. 0.05).
+
+```{r}
+# Fonction pour la sélection backward
+
+backward_selection <- function(modele, seuil = 0.05) {
+  
+  # Commencez par le modèle complet
+  
+  modele_actuel <- modele
+  
+  repeat {
+    # Extraire les p-valeurs
+    
+    p_valeurs <- summary(modele_actuel)$coefficients[,4]
+    
+    # Identifier la p-valeur la plus élevée (excluant l'intercept)
+    
+    max_p_valeur <- max(p_valeurs[-1])
+    
+    # Si la p-valeur la plus élevée est inférieure au seuil, arrêter
+    
+    if (max_p_valeur < seuil) {
+      break
+    }
+    
+    # Identifier la variable à supprimer (celle avec la p-valeur la plus élevée)
+    
+    variable_a_supprimer <- names(p_valeurs)[which(p_valeurs == max_p_valeur)]
+    
+    # Mettre à jour la formule du modèle en retirant la variable
+    
+    formule <- as.formula(update(modele_actuel, paste(". ~ . -", variable_a_supprimer)))
+    
+    # Ré-estimer le modèle
+    
+    modele_actuel <- lm(formule, data = modele_actuel$model)
+  }
+  
+  # Retourner le modèle final
+  
+  return(modele_actuel)
+}
+
+# Appliquer la procédure de sélection backward
+
+modele_final <- backward_selection(mod_complet)
+
+# Afficher le résumé du modèle final
+
+summary(modele_final)
+
+```
+
+## Q. 4 Utiliser l'instruction step(mod_complet,direction="backward").
+
+Pour faire automatiquement de la selection de modele backward nous utiliserons la fonction *step*.
+
+```{r}
+model_back<-step(mod_complet,direction="backward")
+
+```
+
+```{r}
+summary(model_back)
+```
+
+
+*Comparer les resultats avec ceux obtenus précédemment.*
+
+- Modèle Programmée (backward_selection) :
+
+Formule : RETCAP ~ LOGASST + CURRAT + NFATAST + PAYOUT
+
+Ce modèle est simple (4 variables) avec un bon ajustement, toutes les variables sont significatives même si le coefficient R² n'est pas élevé.
+
+- Modèle Backward (model1) :
+
+Formule : RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT 
+
+Ce modèle est peu plus complexe (7 variables), avec un meilleur ajustement global (R² légèrement plus élevé), mais certaines variables ne sont pas significatives, ce qui pourrait indiquer un sur-ajustement.
+
+En résumé, si la priorité est la simplicité et la significativité des variables, le modèle programmé pourrait être préféré. Si l'objectif est de maximiser l'ajustement (R²), le modèle backward est légèrement meilleur, mais il inclut des variables non significatives.
+
+## Q. 5 Utiliser l instruction step(mod_complet,direction="forward")
+
+- **Selection** (forward selection) : a chaque pas, une variable est ajoutée au modèle. C'est celle dont la p-valeur associée au test de Fisher pour comparer deux modèles est minimale. La procedure s'arrête lorsque toutes les variables sont introduites ou lorsque la  p-valeur reste plus grande qu'une valeur seuil fixée par defaut (e.g. 0.05). Pour faire une selection automatiquement du modèle (forward) nous allons utiliser la fonction *step*
+
+```{r}
+model0<-lm(RETCAP ~ 1,data=data)
+
+model_forward<-step(model0,scope=formula(mod_complet),direction="forward")
+```
+
+```{r}
+summary(model_forward)
+```
+
+Le modèle obtenu avec la méthode **forward** est : **RETCAP ~ INVTAST + FATTOT + PAYOUT + CURRAT + NFATAST + QUIKRAT + LOGASST**, tandis que celui obtenu avec la méthode **backward** est : **RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT**. Bien que les deux modèles contiennent le même nombre de variables (7), les variables incluses diffèrent entre les deux modèles, ce qui reflète la différence dans les processus de sélection utilisés.
+
+## Q. 6 Utiliser l instruction step(mod_complet,direction="both") 
+
+- **Mixte** : cet algorithme introduit une étape d'élimination de variable après chaque étape de sélection afin de retirer du modèle d'éventuelles variables qui seraient devenues moins indispensables du fait de la présence de celles nouvellement introduites. Pour faire une selection automatiquement du modèle (mixte) nous allons utiliser la même fonction *step*.
+
+```{r}
+modele_step <- step(mod_complet, direction = "both")
+```
+
+```{r}
+
+summary(modele_step)
+```
+
+Le modèle obtenu avec la méthode **forward** est : **RETCAP ~ INVTAST + FATTOT + PAYOUT + CURRAT + NFATAST + QUIKRAT + LOGASST**, tandis que celui obtenu avec la méthode **backward** est : **RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT**. Bien que les deux modèles contiennent le même nombre de variables (7), les variables incluses diffèrent entre les deux modèles, reflétant les différences dans les processus de sélection.
+
+Avec la méthode **Mixte**, j'obtiens le même modèle que celui de la méthode **backward**, confirmant la robustesse de cette sélection en termes de choix des variables explicatives.
+
+En conclusion, les modèles retenus sont:
+
+```{r}
+mod_complet = lm(RETCAP ~ ., data=data)
+model_backward <-lm(RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT, data = data)
+model_forward <-lm(RETCAP ~ INVTAST + FATTOT + PAYOUT + CURRAT + NFATAST +QUIKRAT + LOGASST, data = data)
+model_step <- lm(RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT, data = data)
+```
+
+
+
+- Déterminons **Le PRESS** pour chaque modèle
+
+```{r echo=TRUE}
+
+n <- nrow(data)  # Nombre d'observations
+PRESS <- 0  # Initialisation de PRESS
+
+for (i in 1:n) {
+  # Créer un sous-échantillon en retirant la i-ème observation
+  ukcomp1_small <- data[-i, ]
+  
+  # Ajuster le modèle sur les données réduites
+  mod_small <- lm(RETCAP ~ ., data = ukcomp1_small)
+  modele_backward <-lm(RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT,data = ukcomp1_small)
+  modele_forward <-lm(RETCAP ~ INVTAST + FATTOT + PAYOUT + CURRAT + NFATAST +QUIKRAT + LOGASST, data = ukcomp1_small)
+  modele_step <- lm(RETCAP ~ LOGASST + CURRAT + QUIKRAT + NFATAST + FATTOT + PAYOUT + GEARRAT, data = ukcomp1_small)
+  
+  # Prédire la valeur de RETCAP pour la i-ème observation
+  pred_complet <- predict(mod_small, newdata = data[i, , drop = FALSE])
+  pred_backward <- predict(modele_backward, newdata = data[i, , drop = FALSE])
+  pred_forward <- predict(modele_forward, newdata = data[i, , drop = FALSE])
+  pred_step <- predict(modele_step, newdata = data[i, , drop = FALSE])
+  # Ajouter l'erreur au carré au total PRESS
+  PRESS_complet <- PRESS + (data[i, "RETCAP"] - pred_complet)^2
+  PRESS_backward <- PRESS + (data[i, "RETCAP"] - pred_backward)^2
+  PRESS_forward <- PRESS + (data[i, "RETCAP"] - pred_forward)^2
+  PRESS_step <- PRESS + (data[i, "RETCAP"] - pred_step)^2
+}
+
+```
+
+
+## Q. 7 Comparer le modele complet et les différents modèles obtenus par selection
+
+Pour comparer le modèle complet et les différents modèles obtenus par sélection à l'aide des critères $R^{2}$ et $R^{2}$ ajusté, et du PRESS, nous pouvons organiser ces informations dans un tableau et analyser quel modèle est le meilleur selon chaque critère.
+
+```{r}
+
+library(kableExtra)
+
+# Créer le dataframe avec les critères
+donne <- data.frame(
+  Critère = c("R2", "R2_adj", "PRESS"),
+  Modele_Complet = c(0.7889, 0.6951, 0.003987748),
+  Modele_Backward = c(0.76, 0.7075, 0.001567752),
+  Modele_Forward = c(0.7547, 0.701, 0.0009496716 ),
+  Modele_Stepwise = c(0.76, 0.7075, 0.001567752),
+  Meilleur_Modele = c("Modèle Complet", "Modèle Stepwise/backward", "Modèle Forward")
+)
+
+# Renommer les colonnes pour plus de lisibilité
+colnames(donne) <- c("Critère", "Modèle Complet", "Modèle Backward", "Modèle Forward", "Modèle Stepwise", "Meilleur Modèle")
+
+# Utiliser kableExtra pour styliser la table et colorer les en-têtes des colonnes
+donne %>%
+  kable("html", escape = F) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "dodgerblue") %>% # Colorer les en-têtes de colonnes
+  column_spec(1, bold = TRUE, color = "black", background = "lightgray") %>% # Colorer la colonne des critères
+  column_spec(2, background = "lightblue") %>%
+  column_spec(3, background = "lightgreen") %>%
+  column_spec(4, background = "lightpink") %>%
+  column_spec(5, background = "lightyellow") %>%
+  column_spec(6, background = "lightcyan")
+
+```
+
+**Conclusion :**
+
+- Le critère $R^{2}$
+
+Le modèle complet est le meilleur selon ce critère, avec un $R^{2}$ de 0.7889, indiquant qu'il explique la plus grande proportion de la variance de la variable dépendante.
+
+-  Le critère $R^{2}$ ajusté :
+
+Les modèles **Stepwise (step) et backward** sont les meilleurs pour ce critère, avec un $R^{2}$ ajusté de 0.7075. Cela signifie qu'ils offrent un bon compromis entre l'ajustement du modèle et la complexité (nombre de variables).
+
+- Critère PRESS :
+
+Le modèle **Forward** est le meilleur selon le critère PRESS, avec une valeur de 0.0007076062, ce qui indique qu'il a la meilleure performance prédictive en validation croisée.
+
+## Q.8 Évaluer ces modèles
+
+On se propose de comparer les valeurs effectivement observées sur le deuxième ensemble d'entreprises avec les previsions calculées à l aide de modèles estimés sur le premier ensemble. Vous pouvez utiliser les instructions suivantes pour charger les données du fichier ukcomp2.txt dans R.
+
+```{r echo=TRUE}
+ ukcomp2<-read.table("ukcomp2.txt")
+names(ukcomp2) = c('RETCAP','WCFTDT', 'LOGSALE','LOGASST','CURRAT','QUIKRAT',
+ 'NFATAST', 'FATTOT', 'PAYOUT','WCFTCL','GEARRAT', 'CAPINT', 'INVTAST')
+datatable(ukcomp2)
+```
+
+- **Prédictions sur les données de la table ukcomp2**
+
+```{r echo=TRUE}
+pred_complet <- predict(mod_complet, newdata = ukcomp2)
+pred_backward <- predict(model_back, newdata = ukcomp2)
+pred_forward <- predict(model_forward, newdata = ukcomp2)
+pred_stepwise <- predict(modele_step, newdata = ukcomp2)
+
+```
+
+-  **Calcul de la somme des carrés des erreurs (SSE) pour chaque modèle sur ukcomp2**
+
+```{r echo=TRUE}
+# Calculer les valeurs observées de ukcomp2 
+observe <- ukcomp2$RETCAP
+
+# Calcul de la somme des carrés des erreurs (SSE) pour chaque modèle sur ukcomp2
+SSE_complet <- sum((observe - pred_complet)^2)
+SSE_backward <- sum((observe - pred_backward)^2)
+SSE_forward <- sum((observe - pred_forward)^2)
+SSE_stepwise <- sum((observe - pred_stepwise)^2)
+
+```
+
+- **Afficher les SSE pour chaque modèle**
+
+```{r}
+
+print(paste("la somme des carrés des erreurs (SSE) pour le modèle complet sur ukcomp2 est :", SSE_complet))
+print(paste("la somme des carrés des erreurs (SSE) pour le modèle backward sur ukcomp2 est :", SSE_backward))
+print(paste("la somme des carrés des erreurs (SSE) pour le modèle forward sur ukcomp2 est :", SSE_forward))
+print(paste("la somme des carrés des erreurs (SSE) pour le modèle step sur ukcomp2 est :", SSE_stepwise))
+```
+
+
+- **Comparer les valeurs de SSE pour déterminer le meilleur modèle**
+
+```{r echo=TRUE}
+
+SSE_results <- data.frame(
+  Model = c("Complet", "Backward", "Forward", "Stepwise"),
+  SSE = c(SSE_complet, SSE_backward, SSE_forward, SSE_stepwise)
+)
+colnames(SSE_results) <- c("Modèle", "la somme des carrés des erreurs (SSE)")
+# Afficher le tableau des résultats
+kable(SSE_results)
+```
+
+
+- ** Le modèle avec la plus petite SSE**
+
+Le modèle avec la plus petite somme des carrés des erreurs (SSE) est le modèle obtenu par la méthode **Backward**
+
+# II-Analyse de données de Fitness
+
+On dispose de données (provenant de la librairie d'exemples de SAS) collectées lors de seances d'aérobie chez 31 personnes.
+
+```{r echo=TRUE}
+fitness1<-read.table("fitness1.txt ")
+fitness2<-read.table("fitness2.txt ")
+colnames(fitness1)<-c("age","weight", "oxy", "runtime", "rstpulse","runpulse", "maxpulse" )
+colnames(fitness2)<-c("age","weight", "oxy", "runtime", "rstpulse","runpulse", "maxpulse" )
+datatable(fitness1)
+```
+
+## Ajuster les différents modèles sur les données fitness1
+
+- Construire un modèle de régression linéaire multiple (modèle complet) avec toutes les variables explicatives sur le jeu de donnée **fitness1**.
+
+```{r}
+modele1_complet <- lm(oxy ~ ., data = fitness1)
+summary(modele1_complet)
+```
+
+
+- Sélection de modèle avec la méthode backward
+
+```{r}
+modele1_backward <- step(modele1_complet, direction = "backward")
+```
+
+```{r}
+summary(modele1_backward )
+```
+
+- Sélection de modèle avec la méthode forward
+
+```{r}
+
+modele1_forward <- step(modele1_complet, direction = "forward")
+```
+
+
+```{r}
+summary(modele1_forward )
+```
+
+- Sélection de modèle avec la méthode stepwise (mixte)
+
+```{r}
+modele_stepwise <- step(modele1_complet, direction = "both")
+```
+
+```{r}
+summary(modele_stepwise)
+```
+
+le modèle **modele_stepwise** est pareil que le modèle obtenu par la méthode de **backward**. Ainsi nous mettons les trois modèles restant en compétitions.
+
+```{r}
+modele_complet = lm(oxy ~ ., data=fitness1)
+modele_backward <-lm(oxy ~ weight + runtime + runpulse + maxpulse, data = fitness1)
+modele_forward <-lm(oxy ~ age + weight + runtime + rstpulse + runpulse + maxpulse, data = fitness1)
+```
+
+## Calcul des critères d'évaluation pour chaque modèle (R², R² ajusté, PRESS)
+
+- calculer le PRESS
+
+
+
+```{r echo=TRUE}
+
+n <- nrow(fitness1)  # Nombre d'observations
+PRESS <- 0  # Initialisation de PRESS
+
+for (i in 1:n) {
+  # Créer un sous-échantillon en retirant la i-ème observation
+  ukcomp1_small <- fitness1[-i, ]
+  
+  # Ajuster le modèle sur les données réduites
+  mod_small <- lm(oxy ~ ., data = ukcomp1_small)
+  modele_backward1 <-lm(oxy ~ weight + runtime + runpulse + maxpulse,data = ukcomp1_small)
+  modele_forward1 <- lm(oxy ~ age + weight + runtime + rstpulse + runpulse + maxpulse, data = ukcomp1_small)
+  
+  
+
+  # Prédire la valeur de oxy pour la i-ème observation
+  pred_complet <- predict(mod_small, newdata = fitness1[i, , drop = FALSE])
+  pred_backward <- predict(modele_backward1, newdata = fitness1[i, , drop = FALSE])
+  pred_forward <- predict(modele_forward1, newdata = fitness1[i, , drop = FALSE])
+  
+  # Ajouter l'erreur au carré au total PRESS
+  PRESS_complet <- PRESS + (fitness1[i, "oxy"] - pred_complet)^2
+  PRESS_backward <- PRESS + (fitness1[i, "oxy"] - pred_backward)^2
+  PRESS_forward <- PRESS + (fitness1[i, "oxy"] - pred_forward)^2
+}
+
+```
+
+
+
+
+## Comparaison des critères
+
+```{r}
+
+results <- data.frame(
+  Model = c("Complet", "Backward", "Forward"),
+  R2 = c(summary(modele_complet)$r.squared, summary(modele_backward)$r.squared, 
+         summary(modele_forward)$r.squared),
+  R2_adj = c(summary(modele_complet)$adj.r.squared, summary(modele_backward)$adj.r.squared, 
+             summary(modele_forward)$adj.r.squared), 
+  PRESS = c(PRESS_complet, PRESS_backward, PRESS_forward)
+  )
+
+# Afficher les résultats
+kable(results)
+```
+
+Le meilleur modèle selon ces critères est le modèle obtenu par la méthode *backward*.
+Ce modèle a présenté des valeurs compétitives pour les critères classiques d'évaluation des modèles de régression tel que le $R^{2}$ et le $R^{2}$ ajusté . Bien que d'autres modèles aient pu inclure plus de variables, le modèle backward a trouvé un excellent équilibre entre simplicité et capacité explicative. De plus Parmi les modèles testés, celui-ci a montré une performance supérieure, minimisant l'erreur de prédiction sur les nouvelles données.
+
+- **Prédictions sur les données de la table fitness2**
+
+```{r echo=TRUE}
+pred_complet <- predict(modele_complet, newdata = fitness2)
+pred_backward <- predict(modele_backward, newdata = fitness2)
+pred_forward <- predict(modele_forward, newdata = fitness1)
+```
+
+-  **Calcul de la somme des carrés des erreurs (SSE) pour chaque modèle sur ukcomp2**
+
+```{r echo=TRUE}
+# Calculer les valeurs observées de ukcomp2 
+observe <- fitness2$oxy
+
+# Calcul de la somme des carrés des erreurs (SSE) pour chaque modèle sur fitness2
+SSE_complet <- sum((observe - pred_complet)^2)
+SSE_backward <- sum((observe - pred_backward)^2)
+SSE_forward <- sum((observe - pred_forward)^2)
+
+```
+
+- **Comparer les valeurs de SSE pour déterminer le meilleur modèle**
+
+```{r echo=TRUE}
+
+SSE_results <- data.frame(
+  Model = c("Complet", "Backward", "Forward"),
+  SSE = c(SSE_complet, SSE_backward, SSE_forward)
+)
+colnames(SSE_results) <- c("Modèle", "la somme des carrés des erreurs (SSE)")
+# Afficher le tableau des résultats
+kable(SSE_results)
+```
+
+
+le modèle avec la plus petite  somme des carrés des erreurs (SSE) est toujour le modèle obtenu par la méthode **Backward** 
+
+Après une analyse approfondie des données, nous avons déterminé que le modèle le plus approprié pour prédire la consommation d'oxygène (variable oxy) en fonction des autres variables explicatives est le modèle suivant :
+
+*modele_backward <- lm(oxy ~ weight + runtime + runpulse + maxpulse, data = fitness1)*
+
+**Conclusion :**
+
+En somme, le modèle backward que nous avons retenu est non seulement le plus simple en termes de variables incluses, mais il s'est également avéré être le meilleur en termes de performance, à la fois pour l'ajustement des données existantes et pour la prédiction sur de nouvelles observations. Ce modèle offre donc un excellent compromis entre simplicité, interprétabilité et efficacité prédictive.
+
+
+
+
+
+
+
+
+
