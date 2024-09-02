@@ -1,0 +1,532 @@
+---
+title: "PREDICTION DE LA PRODUCTION DU CACAO IVOIRIEN EN 2025"
+author: 
+- name: "SORO DOBA ISSIAKA"
+  email: "dobaissiakasoro@gmail.com"
+  phone: "05-55-39-97-80"
+  affiliation: "Data scientist"
+- name: "CROLEY MARIE COLOMBE AUDREY"
+lang: fr
+date: "`r Sys.Date()`"
+geometry: "margin=2cm"
+number-sections: true
+output: 
+      rmdformats::readthedown:
+      #:downcute: 
+      #readthedown, html_clean,html_docco,material,robobook,lockdown,downcute #https://github.com/juba/rmdformats
+      self_contained: true
+      #thumbnails: true
+      lightbox: true 
+      gallery: false
+      highlight: tango
+      use_bookdown: TRUE
+      embed_fonts: true
+      css: ["style-1.css", "style-2.css"]
+      includes:
+        in_header: "header.html"
+     # number_sections: true
+---
+
+
+```{css toc-content, echo = FALSE}
+ TOC {
+  right: 200px;
+  margin: 5px 0px 25px 0px;
+}
+
+.main-container {
+    margin-left: 10px;
+}
+
+p {
+  font-size:  16px;
+    line-height : 2em;  
+}
+
+h1 {
+  color: purple;
+  font-size:  18px;
+    line-height : 2em;  
+}
+
+h2 {
+  color:blues9;
+  font-size:  15px;
+    line-height : 2em;  
+}
+
+h3,h4{
+  color:red;
+  font-size:  12px;
+}
+
+.toggle-button {
+  background-color: #007BFF;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 10px 2px;
+  cursor: pointer;
+}
+
+.hidden-code {
+  display: none;
+}
+
+  
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+# les packages
+library(tidyverse)
+library(rmdformats)
+library(lubridate)
+library(forecast)
+library(kableExtra)
+library(TSstudio)
+library(tseries)
+library(dygraphs)
+library(tseries)
+library(jpeg)
+library(readr)
+library(plotly)
+library(knitr)
+library(DT)
+```
+
+
+## Introduction
+
+ La Côte d'Ivoire est le premier producteur mondial de fèves de cacao, jouant un rôle crucial dans l'économie nationale et internationale. Depuis 1960, l'évolution de la production de cacao dans ce pays a été influencée par divers facteurs, tels que les conditions climatiques, les politiques agricoles, les fluctuations des prix mondiaux, et les pratiques agricoles. La prévision en série temporelle de la production de fèves de cacao sur la période de 1960 à 2024 offre une analyse précieuse pour anticiper les tendances futures, permettre une meilleure planification économique, et aider à la prise de décision pour les acteurs de la chaîne de valeur du cacao. En utilisant des modèles statistiques et des techniques de machine learning, cette prévision permet d'identifier des schémas saisonniers, des cycles et des anomalies, fournissant ainsi une vision claire des dynamiques de production de cette ressource vitale pour la Côte d'Ivoire. pour se faire, nous avons besion des données historique (dataset). Ce dataset est disponible sur le site **data.gouv** <https://data.gouv.ci/datasets/exportindicateurs>. Cet dataset offre une vue détaillée sur l'évolution de la production de cacao en Côte d'Ivoire sur une période de plus 196 à à 2024. Il contient des données annuelles de **63 lignes** et **3 colonnes**  sur la quantité de fèves de cacao produites, mesurées en tonnes métriques, et inclut les éléments suivants :
+ 
+ -   **date** : Indique l'année de la donnée de production, allant de 1960 à 2024.
+
+-   **Production (en tonnes)** : La quantité totale de fèves de cacao produites chaque année.
+
+-   **Prix à la production (FCFA/Kg)** : Le prix moyen du cacao sur le marché international pour chaque année.
+
+```{r, echo=FALSE}
+library(readr)
+exportation <- read.csv2("data_serie/exportation.csv",sep = ";",dec = ",")
+datatable(exportation)
+```
+
+
+## La visualisation de l'ensemble des données
+
+```{r, echo=FALSE}
+# Créer un graphique ggplot
+p <- ggplot(exportation, aes(x=date, y=Production)) +
+  geom_line(color="blue") +
+  theme_minimal() +
+  labs(title="Évolution du nombre de tonne du cacao Ivoirien", x="date", y="exportation")  + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Convertir en graphique plotly pour l'interactivité
+
+ggplotly(p)
+```
+
+La visualisation graphique sur l'ensemble des données montre une valeur manquante de la production du cacao en 1999. Nous pensons que cette valeur manquante est dû au coup d'Etat de 1999. 
+il faut noter qu'il existe plusieurs méthodes pour gérer les valeurs manquantes dans un jeu de donnée donc tout dépend du contexte dans lequel on se trouve. ces differentes méthodes sont: 
+
+ - Faire un revue litterraire
+ - imputer par la moyenne ou la mediane
+ - les supprimées
+ Dans notre cas, nous allons les remplacer par la moyenne.
+
+```{r, echo=FALSE}
+# Remplacer les valeurs manquantes par la moyenne de chaque colonne
+export <- exportation %>%
+  mutate(across(everything(), ~ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# Afficher les premières lignes après le remplacement
+#head(export)
+```
+
+## Analyse descriptive
+
+L'analyse descriptive est une étape essentielle dans l'analyse de données, car elle permet de resumer et de comprendre les caractéristiqques principales d'un jeu de données.
+
+- Resumé statistique (la moyenne, la madiane...)
+
+```{r, echo=FALSE}
+summary(export$Production)
+```
+
+- **Min (Minimum) : 80998**
+Est la plus petite valeur observée dans le jeu de données. Cela signifie que la production annuelle la plus faible enregistrée est de 80 998 tonnes.
+
+- **1st Qu. (1er Quartile) : 245000**
+25% des valeurs de la production de cacao sont inférieures à 245 000 tonnes. Le 1er quartile représente le point en dessous duquel se situe le quart inférieur des données.
+
+- **Median (Médiane) : 848863**
+La valeur médiane de la production est de 848 863 tonnes. Cela signifie que 50% des valeurs sont inférieures et 50% sont supérieures à cette valeur. La médiane est une mesure de la tendance centrale qui n'est pas influencée par les valeurs aberrantes.
+
+- **Mean (Moyenne) : 920505**
+La moyenne de la production annuelle est de 920 505 tonnes. Cette valeur est calculée en additionnant toutes les productions annuelles et en divisant par le nombre d'années. La moyenne peut être influencée par les valeurs aberrantes.
+
+- **3rd Qu. (3ème Quartile) : 1367200**
+75% des valeurs de la production de cacao sont inférieures à 1 367 200 tonnes. Le 3ème quartile représente le point en dessous duquel se situent les trois quarts des données.
+
+- **Max (Maximum) : 2248000**
+La plus grande valeur observée dans le jeu de données. Cela signifie que la production annuelle la plus élevée enregistrée est de 2 248 000 tonnes.
+
+- **Valeur aberrante**
+Les valeurs aberrantes (ou outliers) sont des observations qui se distinguent nettement des autres données. Elles peuvent résulter d'erreurs de mesure ou indiquer des cas exceptionnels qui méritent une attention particulière
+
+- **boxplot pour la variables production**
+
+```{r, echo=FALSE}
+boxplot(exportation$Production)
+```
+
+vu le boxplot il  n'existe pas de valeur aberrante pour la variable **production**
+notre jeu de donnée est un dataframe nous devrons le convertir en ts.
+
+
+```{r, echo=FALSE}
+doba <- exportation |>select(-date)
+cacao <- ts(data=doba, start=1960, frequency = 2)
+head(cacao)
+
+```
+
+```{r, echo=FALSE}
+ts_info(cacao)
+```
+
+
+```{r, echo=FALSE}
+
+# Créer une série temporelle avec les années explicitement spécifiées
+start_year <- 1960
+end_year <- start_year + nrow(export) - 1
+
+# Créer l'objet ts
+production_ts <- ts(data = export$Production, start = start_year, end = end_year, frequency = 2)
+
+# Visualiser la série temporelle avec les fonctions de base
+#plot(production_ts, main = "Production de fèves de cacao en Côte d'Ivoire", ylab = "Production", xlab = "Année")
+#points(production_ts, col = "blue", pch = 19)
+#ts_plot(production_ts)
+
+```
+
+## Modelisation de notre problème.
+
+La modélisation d'une série temporelle permet de comprendre les structures sous-jacentes des données et de faire des prévisions avec des modèle tel que **ARMA, ARIMA, SARIMA**.
+c'est different modèle remplit certain hypothèse.
+
+### La Stationnarisation
+
+Une série temporelle est dite stationnaire si ses propriétés statistiques (comme la moyenne, la variance et l'autocorrélation) sont constantes au cours du temps. La stationnarité est une propriété importante dans l'analyse des séries temporelles, car de nombreux modèles, y compris les modèles ARIMA, supposent que la série est stationnaire.
+
+**Pourquoi la stationnarité est-elle importante ?**
+
+- Modélisation simplifiée : Les modèles pour séries temporelles stationnaires sont plus simples et ont des propriétés théoriques bien définies.
+- Prédictibilité : Les prévisions pour les séries stationnaires sont généralement plus fiables.
+- Éviter les faux résultats : Analyser une série non-stationnaire peut conduire à des conclusions incorrectes.
+
+**Pour vérifier si une série est stationnaire, plusieurs tests peuvent être utilisés** :
+
+ - test **ADF**
+    
+Test de Dickey-Fuller augmenté (ADF) : Teste l'hypothèse nulle que la série a une racine unitaire (non stationnaire).
+
+**Interprétation des Résultats**
+
+- **Hypothèse nulle (H0)** : La série temporelle a une racine unitaire (elle est non stationnaire).
+
+- **Hypothèse alternative (H1)** : La série temporelle n'a pas de racine unitaire (elle est stationnaire).
+
+   - Pour prendre une décision :
+
+Si la **p-value** est inférieure à un seuil (généralement 0.05), on rejette l'hypothèse nulle, indiquant que la série est stationnaire.
+Si la **p-value** est supérieure à ce seuil, on ne rejette pas l'hypothèse nulle, indiquant que la série est non stationnaire.
+
+```{r, echo=FALSE}
+# Effectuer le test ADF
+adf_result <- adf.test(production_ts, alternative = "stationary")
+print(adf_result)
+```
+
+- test **KPSS**
+
+Test KPSS (Kwiatkowski-Phillips-Schmidt-Shin) : Teste l'hypothèse nulle que la série est stationnaire autour d'une moyenne ou d'une tendance déterministe.
+
+**Interprétation des Résultats**
+
+- **Hypothèse nulle (H0)** : La série temporelle est stationnaire autour d'une moyenne ou d'une tendance déterministe.
+- **Hypothèse alternative (H1)** : La série temporelle est non stationnaire.
+
+   - Pour prendre une décision :
+
+Si la p-value est inférieure à un seuil (généralement 0.05), on rejette l'hypothèse nulle, indiquant que la série est non stationnaire.
+Si la p-value est supérieure à ce seuil, on ne rejette pas l'hypothèse nulle, indiquant que la série est stationnaire.
+
+```{r, echo=FALSE}
+# Effectuer le test de Kwiatkowski-Phillips-Schmidt-Shin (KPSS)
+kpss_result <- kpss.test(production_ts)
+print(kpss_result)
+```
+
+-   test **pp**
+
+Le test de racine unitaire de Phillips-Perron (PP) est utilisé pour tester l'hypothèse nulle selon laquelle une série temporelle a une racine unitaire, ce qui signifie qu'elle est non stationnaire. Voici l'interprétation des résultats de votre test PP :
+
+**Interprétation des Résultats**
+
+- **Hypothèse nulle (H0)** : La série temporelle a une racine unitaire (elle est non stationnaire).
+- **Hypothèse alternative (H1)** : La série temporelle n'a pas de racine unitaire (elle est stationnaire).
+
+  - Pour prendre une décision :
+
+- Si la **p-value** est inférieure à un seuil (généralement 0.05), on rejette l'hypothèse nulle, indiquant que la série est stationnaire.
+- Si la **p-value** est supérieure à ce seuil, on ne rejette pas l'hypothèse nulle, indiquant que la série est non stationnaire.
+
+```{r, echo=FALSE}
+# Effectuer le test de Phillips-Perron (PP)
+pp_result <- pp.test(production_ts)
+print(pp_result)
+```
+
+**Resumé dans un tableau des differentes test avec les probalbilité (p_valeur)**
+
+```{r, echo=FALSE}
+
+test = data.frame(test=c("p_valeur", "stationnarité"), 
+                  ADF = c(0.5737,"Non"), 
+                  kpss = c(0.01606,"Non"), 
+                  pp =c(0.6427,"Non"))
+
+# Afficher le dataframe avec couleur sur la dernière ligne
+kable(test) %>%
+  kable_styling() %>%
+  row_spec(nrow(test), background = "lightblue")  
+
+```
+
+On remarque que pour ces trois test la serie n'est pas stationnaire. donc nous devons la rendre stationnaire en la differenciant.
+l'ordre de la série differencie est:
+
+```{r, echo=FALSE}
+# l'ordre de la diff
+ndiffs(production_ts)
+# Différencier la série temporelle
+
+diff_ts_data <- diff(production_ts)
+```
+
+**la visualisation après différenciation**
+
+```{r, echo=FALSE}
+# Tracer la série différenciée
+plot(diff_ts_data, main="Série temporelle différenciée", xlab="Temps", ylab="Différence")
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+# Effectuer le test de Dickey-Fuller augmenté
+adf_test_result <- adf.test(diff_ts_data,alternative = "stationary")
+
+print(adf_test_result)
+
+# Effectuer le test de Kwiatkowski-Phillips-Schmidt-Shin (KPSS)
+kpss_test_result <- kpss.test(diff_ts_data)
+print(kpss_result)
+
+# Effectuer le test de Phillips-Perron (PP)
+pp_test_result <- pp.test(diff_ts_data)
+print(pp_test_result)
+
+```
+
+**Resumé dans un tableau des differentes test avec les probalbilité (p_valeur) après différenciation de la série**
+
+```{r, echo=FALSE}
+# Corriger l'erreur en utilisant des guillemets simples pour les valeurs de chaîne de caractères
+test_sta = data.frame(test=c("p_valeur", "stationnarité"), ADF = c(0.01,"OUI"), kpss = c(0.01606,"Non"), pp =c(0.01,"OUI"))
+
+# Afficher le dataframe avec couleur sur la dernière ligne
+kable(test_sta) %>%
+  kable_styling() %>%
+  row_spec(nrow(test), background = "lightblue")  
+
+```
+
+après différenciation, on remarque que la série est stationnaire d'ordre **d=1**
+puisque la série est stationnaire  alors le modèle mathématique qui correspond est **ARIMA(p,d,q)**
+Pour détermminer $p$ et $q$, nous allons suivre la méthodologie de **Box Jenskin**
+cette méthode se réalise en 3 étape:
+
+- Identification du modèle: trouver $p$, $q$ et $d$
+   
+   - **Analyse de l'ordre p et q**
+
+En modélisant une série temporelle avec un modèle ARIMA (AutoRegressive Integrated Moving Average), les paramètres $p$ et $q$ sont déterminés en examinant les graphiques de la fonction d'autocorrélation (PACF) et de la fonction d'autocorrélation partielle (ACF) :
+
+1.  **Détermination de $p$ (Ordre du composant autorégressif AR) :**
+
+    -   Pour déterminer $p$, observez le graphique de la fonction d'autocorrélation partielle (PACF).
+    -   Le paramètre $p$ correspond au dernier décalage significatif dans le graphique PACF. Autrement dit,         après le décalage $p$, les autocorrélations partielles devraient être non significatives (proches de        zéro).
+    -   cela signifie que nous cherchons le nombre de barres (lags) dans le graphique PACF qui          sont        significativement différentes de zéro.  
+   
+```{r, echo=FALSE}
+# Calculer et afficher la PACF: détermination de p
+pacf(diff_ts_data, lag.max=15, main="Partial Autocorrelation Function (PACF)")
+```
+
+
+2.  **Détermination de $q$ (Ordre du composant de moyenne mobile MA) :**
+   
+    - Pour déterminer $q$, examinez le graphique de la fonction d'autocorrélation (ACF).
+    - Le paramètre $q$ correspond au dernier décalage significatif dans le graphique ACF. Cela signifie que nous cherchons le nombre de barres (lags) dans le graphique ACF qui sont significativement différentes de zéro.
+
+
+```{r, echo=FALSE}
+# Calculer et afficher l'ACF détermination de q
+acf(diff_ts_data, lag.max=15, main="Autocorrelation Function (ACF)")
+
+```
+
+D'après le graphique de la fonction d'autocorrélation (ACF), nous pouvons tirer les conclusions suivantes :
+
+- **Significativité des lag** : Les valeurs d'autocorrélation pour les différents lags (0 à 6) semblent toutes se situer à l'intérieur des bandes de confiance (généralement à +/- 1.96 / sqrt(n), où n est le nombre d'observations). Cela suggère que les autocorrélations ne sont pas statistiquement significatives.
+
+- **Absence d'autocorrélation** : Étant donné que toutes les valeurs sont à l'intérieur des bandes de confiance, il n'y a pas de preuve d'autocorrélation significative dans les données pour ces lags.
+Pour confirmer cette conclusion, nous pouvons effectuer le test de **Box-Ljung**.
+Je vais maintenant exécuter ce test.
+
+```{r, echo=FALSE}
+Box.test(diff_ts_data, lag=4, type = "Ljung-Box")
+```
+
+- **Interprétation** :
+
+   - **Hypothèse nulle (H0)** : Les premières k autocorrélations de la série temporelle sont toutes égales à zéro (pas d'autocorrélation significative).
+  - **Hypothèse alternative (H1)** : Au moins une des premières k autocorrélations n'est pas égale à zéro (il y a une autocorrélation significative).
+  
+- **Conclusion** :
+
+   - **p-value = 0.1939** : Cette valeur est supérieure au seuil de signification communément utilisé de 0.05.
+   
+   - *Décision* : Comme la p-value est plus grande que 0.05, nous ne rejetons pas l'hypothèse nulle. En d'autre terme Les résultats du test de Box-Ljung suggèrent qu'il n'y a pas suffisamment de preuves pour conclure que les premières 15 autocorrélations de notre série temporelle sont significativement différentes de zéro. En d'autres termes, il n'y a pas d'autocorrélation significative dans votre série temporelle jusqu'à un lag de 15. Cela signifie que notre série temporelle peut être considérée comme n'ayant pas de structure d'autocorrélation significative jusqu'à ce lag.
+
+**En conclusion $p=0$, $q=0$ et $d=1$**
+
+
+
+## Estimation
+
+- **Estimation automatique**
+
+j'ai calibré p à 4 parce-que nous avons des doutes en 4
+
+```{r, echo=FALSE}
+model <- auto.arima(production_ts, max.p = 4, max.q = 0)
+
+# Afficher le résumé du modèle
+summary(model)
+```
+
+Nous retenons comme meilleur modèle **ARIMA(0,1,0)**
+
+## Validation du modèle
+
+Après avoir ajusté un modèle ARIMA, il est crucial de vérifier les résidus du modèle pour s'assurer de la qualité de l'ajustement. Les résidus sont la différence entre les valeurs observées et les valeurs prédites par le modèle. Si le modèle est bien ajusté, les résidus doivent se comporter comme un bruit blanc, c'est-à-dire être une série temporelle aléatoire à distribution normale, avec une moyenne de zéro et sans autocorrélation. Voici quelques points clés à vérifier :
+
+```{r}
+# Calculer les résidus
+residuals <- residuals(model)
+# Tracer les résidus
+plot(residuals, main = "Residuals")
+```
+
+
+- **Test de Ljung-Box**
+
+Le test de Ljung-Box teste l'absence d'autocorrélation dans les résidus. Nous voulons que les résidus soient indépendants les uns des autres. Une faible valeur p (p \< 0,05) indique une preuve d'autocorrélation.
+
+```{r, echo=FALSE}
+# Test de Ljung-Box
+
+# Initialiser un tableau pour stocker les résultats du test de Ljung-Box
+ljung_box_results <- data.frame(Order = integer(), Test_Statistic = numeric(), P_Value = numeric())
+
+# Appliquer le test de Ljung-Box pour chaque ordre de 1 à 12
+for (i in 1:12) {
+  test_result <- Box.test(residuals, lag = i, type = "Ljung-Box")
+  ljung_box_results <- rbind(ljung_box_results, data.frame(Order = i, Test_Statistic = test_result$statistic, P_Value = test_result$p.value))
+}
+
+ljung_box_results
+```
+
+On a les p-valeur très élevé jusqu'à l'ordre 12 et toutes supérieurs à 5%. Ainsi quel que soit l'ordre que je choisis avec mon modèle, nous avons des sésidus qui sont non autocorrelé. c'est à dire indépendantes
+
+
+- **Hétéroscédasticité**
+
+L'hétéroscédasticité se réfère à la situation dans laquelle la variabilité de l'erreur de prédiction (ou résidu) n'est pas constante à travers toutes les observations. Nous préférons avoir une erreur de prédiction constante, donc la vérification de l'hétéroscédasticité est importante. Un bon modèle devrait présenter une homoscédasticité, c'est-à-dire une variance constante des résidus.
+
+```{r}
+# ACF et PACF des résidus
+acf(residuals, main = "ACF of Residuals")
+pacf(residuals, main = "PACF of Residuals")
+```
+
+- **Normalité**
+
+L'aspect de normalité fait référence à la distribution des résidus. Dans un bon modèle, nous attendons que les résidus suivent une distribution normale. Pour vérifier cela, nous pouvons utiliser un graphique Q-Q ou effectuer un test statistique, comme le test de **Shapiro-Wilk**, pour vérifier la normalité.
+
+```{r}
+# Test de normalité 
+qqnorm(residuals)
+qqline(residuals)
+```
+
+Le graphe qq nous montre que les résidus ne suivent pas une distribution normale. pour confirmer cela nous allons mettre le test de **Shapiro-Wilk**
+
+```{r, echo=FALSE}
+#(Test de Shapiro-Wilk)
+shapiro.test(residuals)
+```
+
+ - **Graphiques des résidus**
+
+En plus des tests statistiques, il est utile de tracer les résidus au fil du temps, ainsi que leur autocorrélation (ACF et PACF), pour vérifier visuellement les suppositions précédentes. Dans un modèle bien ajusté, les résidus devraient ressembler à un bruit blanc lorsqu'ils sont tracés dans le temps, et l'ACF et le PACF devraient montrer peu ou pas de corrélation significative.
+
+## Prédiction
+
+```{r, echo=FALSE}
+
+# Effectuer des prévisions pour les 24 périodes suivantes avec le modèle ARIMA
+fore <- forecast(model, h=2)
+
+# Calculer les intervalles de prédiction supérieur (U) et inférieur (L)
+# Ces intervalles représentent une marge d'erreur autour des prévisions
+U <- fore$upper[, "95%"] # Intervalle de prédiction supérieur à 95%
+L <- fore$lower[, "95%"] # Intervalle de prédiction inférieur à 95%
+
+# Tracer les données observées et les prévisions
+# Les lignes continues représentent les données observées et les prévisions
+# Les lignes en pointillés représentent les intervalles de prédiction
+ts.plot(production_ts, fore$mean, U, L, col=c(1, 2, 4, 4), lty=c(1, 1, 2, 2))
+
+# Ajouter une légende sur le graphique
+# La légende aide à distinguer les différents éléments du graphique
+legend("topleft", c("Données observées", "Prédictions", "Intervalles de prédiction (95%)"), 
+       col=c(1, 2, 4), lty=c(1, 1, 2))
+
+```
+
+
